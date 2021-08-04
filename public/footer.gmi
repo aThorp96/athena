@@ -1,0 +1,7 @@
+---
+Written and hosted by Andrew Thorp (andrew dot thorp dot dev at gmail dot com)
+=> https://thorp.dev My personal website
+
+Powered by Free Dictionary API.
+Please support Free Dictionary API's server costs.
+=> https://dictionaryapi.dev Free Dictionary API

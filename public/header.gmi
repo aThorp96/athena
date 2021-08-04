@@ -1,0 +1,9 @@
+```
+┏━┃━┏┛┃ ┃┏━┛┏━ ┏━┃
+┏━┃ ┃ ┏━┃┏━┛┃ ┃┏━┃
+┛ ┛ ┛ ┛ ┛━━┛┛ ┛┛ ┛ Dictionary
+```
+Welcome to Athena, the Open Source Gemini Dictionary powered by Free Dictionary API!
+
+=> lookup/ Search for a word!
+
