@@ -1,15 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/a-h/gemini"
 	"github.com/a-h/gemini/mux"
@@ -42,90 +38,6 @@ func configure() athenaConfig {
 	return config
 }
 
-type Definition struct {
-	Definition string   `json:"definition"`
-	Example    string   `json:"example"`
-	Synonyms   []string `json:"synonyms"`
-}
-type Meanings struct {
-	PartOfSpeech string       `json:"partOfSpeech"`
-	Definitions  []Definition `json:"definitions"`
-}
-type Word struct {
-	Word      string              `json:"word"`
-	Phonetics []map[string]string `json:"phonetics"`
-	Meanings  []Meanings          `json:"meanings"`
-}
-
-func getFileContent(path string) string {
-	file, err := os.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	content := ""
-	for scanner.Scan() {
-		content += scanner.Text() + "\n"
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-	return content
-}
-
-func newAthenaDocument() gemini.DocumentBuilder {
-	page := gemini.NewDocumentBuilder()
-	page.SetHeader(getFileContent("./public/header.gmi"))
-	page.AddLine("---")
-	page.SetFooter(getFileContent("./public/footer.gmi"))
-	return page
-}
-
-func definitionToPage(data []byte) []byte {
-	page := newAthenaDocument()
-
-	var payload []Word
-	err := json.Unmarshal(data, &payload)
-	if err != nil {
-		page.AddLine("An unknown error has occored...")
-		log.Println("Error unmarshalling response: %s", err)
-	}
-
-	for i := 0; i < len(payload); i++ {
-		word := payload[i]
-
-		page.AddLine("")
-		page.AddH1Header(strings.Title(word.Word))
-
-		for j := 0; j < len(word.Phonetics); j++ {
-			phonetic := word.Phonetics[j]
-			page.AddLine(fmt.Sprintf("\t(%s)", phonetic["text"]))
-		}
-
-		page.AddLine("")
-
-		for j := 0; j < len(word.Meanings); j++ {
-			meaning := word.Meanings[j]
-			page.AddLine(meaning.PartOfSpeech)
-
-			for k := 0; k < len(meaning.Definitions); k++ {
-				definition := meaning.Definitions[k]
-				page.AddH2Header("Definition:")
-				page.AddLine(definition.Definition)
-				if len(definition.Example) > 0 {
-					page.AddH3Header("Example:")
-					page.AddLine(definition.Example)
-				}
-				page.AddLine("")
-			}
-		}
-	}
-	return page.Build()
-}
-
 func handleLookup(w gemini.ResponseWriter, r *gemini.Request) {
 	const URLTemplate string = "https://api.dictionaryapi.dev/api/v2/entries/en_US/%s"
 	// TODO: Sanitize input
@@ -150,7 +62,11 @@ func handleLookup(w gemini.ResponseWriter, r *gemini.Request) {
 func handleRoot(w gemini.ResponseWriter, r *gemini.Request) {
 	page := newAthenaDocument()
 	page.AddLine("Search for a word to continue")
-	w.Write(page.Build())
+	rawPage, err := page.Build()
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Write(rawPage)
 }
 
 func main() {
