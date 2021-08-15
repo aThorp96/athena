@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 
 	"github.com/a-h/gemini"
 	"github.com/a-h/gemini/mux"
@@ -38,27 +36,6 @@ func configure() athenaConfig {
 	return config
 }
 
-func handleLookup(w gemini.ResponseWriter, r *gemini.Request) {
-	const URLTemplate string = "https://api.dictionaryapi.dev/api/v2/entries/en_US/%s"
-	// TODO: Sanitize input
-	word := r.URL.RawQuery
-	log.Printf("Looking up \"%s\"\n", word)
-
-	resp, err := http.Get(fmt.Sprintf(URLTemplate, word))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	// Why is the body the stream?
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	w.Write(definitionToPage(body))
-}
-
 func handleRoot(w gemini.ResponseWriter, r *gemini.Request) {
 	page := newAthenaDocument()
 	page.AddLine("Search for a word to continue")
@@ -69,14 +46,25 @@ func handleRoot(w gemini.ResponseWriter, r *gemini.Request) {
 	w.Write(rawPage)
 }
 
-func main() {
-	cfg := configure()
+// routes is a wrapper to map the route strings to their respective functions.
+func routes() map[string]gemini.HandlerFunc {
 	lookupHandler := gemini.RequireInputHandler(gemini.HandlerFunc(handleLookup), "Enter seach word")
-	rootHandler := gemini.HandlerFunc(handleRoot)
+	return map[string]gemini.HandlerFunc{
+		// Add new routes here
+		"/":       gemini.HandlerFunc(handleRoot),
+		"/lookup": lookupHandler.(gemini.HandlerFunc),
+	}
+}
 
+func main() {
+	// Configure app
+	cfg := configure()
+
+	// Initialize routes
 	router := mux.NewMux()
-	router.AddRoute("/lookup", lookupHandler)
-	router.AddRoute("/", rootHandler)
+	for route, handler := range routes() {
+		router.AddRoute(route, handler)
+	}
 
 	ctx := context.Background()
 	domainHandler, err := gemini.NewDomainHandlerFromFiles(cfg.domain, cfg.certPath, cfg.keyPath, router)
@@ -84,11 +72,6 @@ func main() {
 		log.Fatal("Error creating domain handler:", err)
 	}
 
-	if err != nil {
-		log.Fatal("error creating domain handler B:", err)
-	}
-
-	// Start the server for two domains (a.gemini / b.gemini).
 	addr := fmt.Sprintf(":%d", cfg.port)
 	err = gemini.ListenAndServe(ctx, addr, domainHandler)
 	if err != nil {

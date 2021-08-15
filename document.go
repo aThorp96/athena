@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"os"
 	"log"
+	"os"
 
 	"github.com/a-h/gemini"
 )
